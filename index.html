@@ -1,0 +1,2439 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f0f0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Telegram Mini App Meta -->
+    <meta property="og:title" content="Финансы Mini App">
+    <meta property="og:description" content="Управляйте своими финансами легко и удобно">
+    <meta property="og:image" content="https://your-domain.com/assets/icons/icon-256.png">
+    
+    <title>Финансы</title>
+    
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js">
+    </script>
+    
+    <style>
+        /* ============================================
+           ВСЕ СТИЛИ ИЗ ПРЕДЫДУЩИХ ВЕРСИЙ
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #252525;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --border-color: #333333;
+            --accent-income: #4ade80;
+            --accent-expense: #ef4444;
+            --accent-savings: #3b82f6;
+            --accent-chart: #8b5cf6;
+            --accent-balance: #fbbf24;
+            --accent-profit: #22d3ee;
+            --radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.5;
+            overflow-x: hidden;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 16px;
+            padding-top: 75px;
+            padding-bottom: 30px;
+        }
+
+        /* HEADER */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 16px;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-chart), var(--accent-savings));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-balance {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-balance);
+            background: rgba(251, 191, 36, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+
+        .header-right {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .header-right .btn-icon {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            transition: var(--transition);
+        }
+
+        .header-right .btn-icon:hover {
+            color: var(--text-primary);
+            border-color: var(--accent-chart);
+            transform: scale(1.05);
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            background: var(--bg-secondary);
+            padding: 6px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 9px 10px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: var(--transition);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+        }
+
+        .tab .tab-icon {
+            margin-right: 3px;
+        }
+
+        /* SUMMARY CARDS */
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .summary-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 14px 12px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .summary-card:hover::before {
+            opacity: 1;
+        }
+        .summary-card.income::before { background: var(--accent-income); }
+        .summary-card.expense::before { background: var(--accent-expense); }
+        .summary-card.savings::before { background: var(--accent-savings); }
+        .summary-card.balance::before { background: var(--accent-balance); }
+
+        .summary-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(139, 92, 246, 0.2);
+        }
+
+        .summary-card .label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            letter-spacing: 0.6px;
+            font-weight: 600;
+        }
+
+        .summary-card .value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .summary-card .sub-info {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 3px;
+            opacity: 0.7;
+        }
+
+        .summary-card.income .value { color: var(--accent-income); }
+        .summary-card.expense .value { color: var(--accent-expense); }
+        .summary-card.savings .value { color: var(--accent-savings); }
+        .summary-card.balance .value { color: var(--accent-balance); }
+
+        /* FORM */
+        .form-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-bottom: 16px;
+            transition: var(--transition);
+        }
+
+        .form-section:hover {
+            border-color: rgba(139, 92, 246, 0.15);
+        }
+
+        .form-section h3 {
+            font-size: 15px;
+            margin-bottom: 14px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input,
+        .form-group select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: var(--transition);
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-chart);
+            background: var(--bg-primary);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .form-group input[type="date"] {
+            color-scheme: dark;
+        }
+
+        .form-group select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23b0b0b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 2px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-chart), #7c3aed);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-secondary);
+        }
+
+        /* CHARTS */
+        .charts-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 16px;
+            transition: var(--transition);
+        }
+
+        .chart-container-full {
+            grid-column: 1 / -1;
+        }
+
+        .chart-container:hover {
+            border-color: rgba(139, 92, 246, 0.12);
+        }
+
+        .chart-container h3 {
+            font-size: 13px;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 220px;
+            margin-bottom: 6px;
+        }
+
+        /* FILTERS */
+        .filter-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            background: var(--bg-tertiary);
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .filter-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .filter-btn.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        /* CALENDAR */
+        .calendar {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .calendar-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 6px;
+        }
+
+        .calendar-nav button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: var(--transition);
+        }
+
+        .calendar-nav button:hover {
+            border-color: var(--accent-chart);
+            background: var(--bg-primary);
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 3px;
+            margin-bottom: 6px;
+        }
+
+        .weekday {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 6px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 3px;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-secondary);
+            position: relative;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .day:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent-chart);
+            transform: scale(1.05);
+            z-index: 2;
+        }
+
+        .day.today {
+            border-color: var(--accent-chart);
+            color: var(--text-primary);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .day.has-expense::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-expense);
+            border-radius: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .day.has-income::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-income);
+            border-radius: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .day.has-income.has-expense::after {
+            background: var(--accent-chart);
+        }
+
+        /* TRANSACTIONS */
+        .transactions {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .transactions h3 {
+            margin-bottom: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .transactions .count {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+            gap: 8px;
+        }
+
+        .transaction-item:hover {
+            border-color: rgba(139, 92, 246, 0.25);
+            transform: translateX(3px);
+        }
+
+        .transaction-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .transaction-category {
+            font-size: 12px;
+            color: var(--text-primary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .transaction-date {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 1px;
+        }
+
+        .transaction-amount {
+            font-size: 15px;
+            font-weight: 600;
+            margin-right: 6px;
+            white-space: nowrap;
+        }
+
+        .transaction-amount.income { color: var(--accent-income); }
+        .transaction-amount.expense { color: var(--accent-expense); }
+        .transaction-amount.savings { color: var(--accent-savings); }
+
+        .transaction-actions {
+            display: flex;
+            gap: 3px;
+            flex-shrink: 0;
+        }
+
+        .btn-icon {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: var(--transition);
+        }
+
+        .btn-icon:hover {
+            color: var(--text-primary);
+            border-color: var(--accent-chart);
+            transform: scale(1.05);
+        }
+
+        .btn-icon.danger:hover {
+            border-color: var(--accent-expense);
+            color: var(--accent-expense);
+        }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 20px;
+            max-width: 380px;
+            width: 92%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h2 {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 26px;
+            cursor: pointer;
+            transition: var(--transition);
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: var(--text-primary);
+            transform: rotate(90deg);
+        }
+
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center;
+            padding: 30px 16px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 13px;
+        }
+
+        /* REMINDERS */
+        .reminder-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .reminder-item:hover {
+            border-color: rgba(139, 92, 246, 0.25);
+        }
+
+        .reminder-info {
+            flex: 1;
+        }
+
+        .reminder-title {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .reminder-detail {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .reminder-amount {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-expense);
+            margin-right: 8px;
+        }
+
+        .reminder-badge {
+            font-size: 10px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            background: var(--accent-chart);
+            color: white;
+            margin-right: 8px;
+        }
+
+        /* P&L */
+        .pl-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .pl-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .pl-card .pl-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .pl-card .pl-value {
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .pl-card.positive .pl-value { color: var(--accent-income); }
+        .pl-card.negative .pl-value { color: var(--accent-expense); }
+        .pl-card.neutral .pl-value { color: var(--accent-balance); }
+
+        /* PROGRESS GOALS */
+        .progress-goal {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-goal .goal-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .progress-goal .goal-header .goal-name {
+            font-weight: 500;
+        }
+
+        .progress-goal .goal-header .goal-percent {
+            color: var(--accent-chart);
+        }
+
+        .progress-goal .goal-track {
+            height: 6px;
+            background: var(--bg-secondary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-goal .goal-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--accent-chart), var(--accent-savings));
+            transition: width 0.8s ease;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 600px) {
+            .summary {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            .summary-card .value {
+                font-size: 18px;
+            }
+            .summary-card .label {
+                font-size: 9px;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 10px;
+                padding-top: 70px;
+            }
+            .tabs .tab {
+                font-size: 11px;
+                padding: 7px 4px;
+            }
+            .tab .tab-icon {
+                margin-right: 2px;
+            }
+            .chart-wrapper {
+                height: 180px;
+            }
+            .transaction-item {
+                padding: 8px 10px;
+            }
+            .header h1 {
+                font-size: 15px;
+            }
+            .header-balance {
+                font-size: 11px;
+                padding: 2px 10px;
+            }
+            .filter-btn {
+                font-size: 11px;
+                padding: 4px 10px;
+            }
+            .pl-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .summary {
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
+            .summary-card {
+                padding: 10px 8px;
+            }
+            .summary-card .value {
+                font-size: 16px;
+            }
+            .tabs {
+                gap: 4px;
+                padding: 4px;
+            }
+            .tab {
+                font-size: 10px;
+                padding: 5px 3px;
+            }
+            .tab .tab-icon {
+                display: none;
+            }
+            .pl-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* SCROLL */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================
+    РАЗМЕТКА
+    ============================================ -->
+    <div class="header">
+        <div class="header-left">
+            <h1>Финансы</h1>
+            <span class="header-balance" id="headerBalance">0</span>
+        </div>
+        <div class="header-right">
+            <button class="btn-icon" onclick="exportData()" title="Экспорт">📤</button>
+            <button class="btn-icon" onclick="showClearData()" title="Сбросить">🔄</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- SUMMARY -->
+        <div class="summary">
+            <div class="summary-card income">
+                <div class="label">Доход</div>
+                <div class="value" id="incomeTotal">0</div>
+            </div>
+            <div class="summary-card expense">
+                <div class="label">Расход</div>
+                <div class="value" id="expenseTotal">0</div>
+            </div>
+            <div class="summary-card savings">
+                <div class="label">Накопления</div>
+                <div class="value" id="savingsTotal">0</div>
+                <div class="sub-info" id="savingsAgeInfo">—</div>
+            </div>
+            <div class="summary-card balance">
+                <div class="label">Остаток</div>
+                <div class="value" id="balanceTotal">0</div>
+                <div class="sub-info" id="balanceInfo">—</div>
+            </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard', this)">
+                <span class="tab-icon">📊</span> Обзор
+            </button>
+            <button class="tab" data-tab="add" onclick="switchTab('add', this)">
+                <span class="tab-icon">➕</span> Добавить
+            </button>
+            <button class="tab" data-tab="calendar" onclick="switchTab('calendar', this)">
+                <span class="tab-icon">📅</span> Календарь
+            </button>
+            <button class="tab" data-tab="history" onclick="switchTab('history', this)">
+                <span class="tab-icon">📜</span> История
+            </button>
+            <button class="tab" data-tab="reminders" onclick="switchTab('reminders', this)">
+                <span class="tab-icon">🔔</span> Напоминания
+            </button>
+        </div>
+
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="tab-content">
+            <div class="chart-container" style="margin-bottom: 16px;">
+                <h3>📊 Прибыль и Убыток</h3>
+                <div class="pl-grid" id="plGrid">
+                    <div class="pl-card">
+                        <div class="pl-label">Доход</div>
+                        <div class="pl-value positive" id="plIncome">0</div>
+                    </div>
+                    <div class="pl-card">
+                        <div class="pl-label">Расход</div>
+                        <div class="pl-value negative" id="plExpense">0</div>
+                    </div>
+                    <div class="pl-card" id="plProfitCard">
+                        <div class="pl-label">Прибыль</div>
+                        <div class="pl-value" id="plProfit">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container chart-container-full">
+                    <h3>📈 Накопительный баланс</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="cumulativeChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>📉 Топ расходов</h3>
+                    <div class="chart-wrapper" style="height:200px;">
+                        <canvas id="topExpensesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>📊 Соотношение доход и расход</h3>
+                    <div class="chart-wrapper" style="height:200px;">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container chart-container-full">
+                    <h3>🎯 Прогресс целей накопления</h3>
+                    <div id="goalsProgress"></div>
+                </div>
+
+                <div class="chart-container chart-container-full">
+                    <h3>📈 Тренд расходов</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container chart-container-full">
+                    <h3>Расходы по дням неделя</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="dailyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Расходы по категориям</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Накопления по категориям</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="savingsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container chart-container-full">
+                    <h3>Динамика доход и расход</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADD -->
+        <div id="add" class="tab-content" style="display: none;">
+            <div class="form-section">
+                <h3>Новая операция</h3>
+                <div class="form-group">
+                    <label>Тип операции</label>
+                    <select id="type" onchange="updateCategories()">
+                        <option value="income">Доход</option>
+                        <option value="expense">Расход</option>
+                        <option value="savings">Накопление</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Категория</label>
+                    <select id="category"></select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Сумма</label>
+                        <input type="number" id="amount" placeholder="0" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Дата</label>
+                        <input type="date" id="date">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Описание</label>
+                    <input type="text" id="description" placeholder="Необязательно">
+                </div>
+
+                <div class="buttons">
+                    <button class="btn btn-primary" onclick="addTransaction()">Добавить</button>
+                    <button class="btn btn-secondary" onclick="resetForm()">Очистить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CALENDAR -->
+        <div id="calendar" class="tab-content" style="display: none;">
+            <div class="calendar">
+                <div class="calendar-header">
+                    <h3 id="calendarMonth"></h3>
+                    <div class="calendar-nav">
+                        <button onclick="prevMonth()">◀</button>
+                        <button onclick="todayMonth()">Сегодня</button>
+                        <button onclick="nextMonth()">▶</button>
+                    </div>
+                </div>
+                <div class="weekdays">
+                    <div class="weekday">ПН</div>
+                    <div class="weekday">ВТ</div>
+                    <div class="weekday">СР</div>
+                    <div class="weekday">ЧТ</div>
+                    <div class="weekday">ПТ</div>
+                    <div class="weekday">СБ</div>
+                    <div class="weekday">ВС</div>
+                </div>
+                <div class="days" id="calendarDays"></div>
+            </div>
+            <div id="calendarDetails" style="margin-top: 14px;"></div>
+        </div>
+
+        <!-- HISTORY -->
+        <div id="history" class="tab-content" style="display: none;">
+            <div class="transactions">
+                <h3>
+                    История
+                    <span class="count" id="transactionCount">0 операций</span>
+                </h3>
+
+                <div class="filter-bar">
+                    <button class="filter-btn active" data-period="month" onclick="setFilter('month', this)">Месяц</button>
+                    <button class="filter-btn" data-period="3months" onclick="setFilter('3months', this)">3 мес</button>
+                    <button class="filter-btn" data-period="year" onclick="setFilter('year', this)">Год</button>
+                    <button class="filter-btn" data-period="all" onclick="setFilter('all', this)">Все</button>
+                </div>
+
+                <div id="transactionsList"></div>
+            </div>
+        </div>
+
+        <!-- REMINDERS -->
+        <div id="reminders" class="tab-content" style="display: none;">
+            <div class="form-section">
+                <h3>Добавить напоминание</h3>
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="reminderTitle" placeholder="Например: Коммуналка">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Сумма</label>
+                        <input type="number" id="reminderAmount" placeholder="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>День месяца</label>
+                        <input type="number" id="reminderDay" placeholder="1-31" min="1" max="31">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Категория</label>
+                    <select id="reminderCategory">
+                        <option value="Коммунальные">Коммунальные</option>
+                        <option value="Телефон">Телефон</option>
+                        <option value="Интернет">Интернет</option>
+                        <option value="Подписки">Подписки</option>
+                        <option value="Кредит">Кредит</option>
+                        <option value="Прочее">Прочее</option>
+                    </select>
+                </div>
+                <div class="buttons">
+                    <button class="btn btn-primary" onclick="addReminder()">Добавить</button>
+                </div>
+            </div>
+
+            <div class="transactions">
+                <h3>Активные напоминания <span class="count" id="reminderCount">0</span></h3>
+                <div id="remindersList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактировать</h2>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="form-group">
+                <label>Сумма</label>
+                <input type="number" id="editAmount" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+                <label>Категория</label>
+                <select id="editCategory"></select>
+            </div>
+            <div class="form-group">
+                <label>Описание</label>
+                <input type="text" id="editDescription" placeholder="Заметка">
+            </div>
+            <div class="buttons">
+                <button class="btn btn-primary" onclick="saveEdit()">Сохранить</button>
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // ПОЛНЫЙ JAVASCRIPT КОД
+        // ============================================
+
+        // ===== КАТЕГОРИИ =====
+        const CATEGORY_ICONS = {
+            'Зарплата': '💰', 'Фриланс': '💻', 'Подарок': '🎁',
+            'Бонус': '⭐', 'Инвестиции': '📈',
+            'Еда': '🍕', 'Транспорт': '🚗', 'Развлечение': '🎮',
+            'Здоровье': '💊', 'Коммунальные': '💡', 'Одежда': '👔',
+            'Образование': '📚', 'Телефон': '📱', 'Интернет': '🌐',
+            'Кафе': '☕', 'Подарки': '🎁', 'Подписки': '📺',
+            'Кредит': '🏦', 'Накопления': '🏦', 'Резерв': '🛡️',
+            'Крупная цель': '🎯', 'Прочее': '📌'
+        };
+
+        const categoryOptions = {
+            income: ['Зарплата', 'Фриланс', 'Подарки', 'Бонус', 'Инвестиции', 'Прочее'],
+            expense: ['Еда', 'Транспорт', 'Развлечение', 'Здоровье', 'Коммунальные', 'Одежда', 'Образование', 'Телефон',
+                'Интернет', 'Кафе', 'Подарки', 'Подписки', 'Кредит', 'Прочее'
+            ],
+            savings: ['Накопления', 'Инвестиции', 'Резерв', 'Крупная цель', 'Прочее']
+        };
+
+        // ===== ИНИЦИАЛИЗАЦИЯ =====
+        let currentEditId = null;
+        let currentMonth = new Date();
+        let currentFilter = localStorage.getItem('financeFilter') || 'month';
+        const charts = {};
+
+        document.getElementById('date').valueAsDate = new Date();
+
+        // ===== ОСНОВНЫЕ ФУНКЦИИ =====
+        function getTransactions() {
+            return JSON.parse(localStorage.getItem('transactions') || '[]');
+        }
+
+        function saveTransactions(data) {
+            localStorage.setItem('transactions', JSON.stringify(data));
+            updateSavingsAge();
+            updateSummary();
+            renderDashboard();
+            renderTransactions();
+            renderCalendar();
+            updatePL();
+        }
+
+        function getReminders() {
+            return JSON.parse(localStorage.getItem('reminders') || '[]');
+        }
+
+        function saveReminders(data) {
+            localStorage.setItem('reminders', JSON.stringify(data));
+            renderReminders();
+        }
+
+        function getIcon(category) {
+            return CATEGORY_ICONS[category] || '📌';
+        }
+
+        function updateSavingsAge() {
+            const transactions = getTransactions();
+            const today = new Date();
+            transactions.forEach(t => {
+                if (t.type === 'savings') {
+                    const tDate = new Date(t.date);
+                    const diffTime = today - tDate;
+                    t.savingsAge = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                }
+            });
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+        }
+
+        // ===== ТЕЛЕГРАМ ИНТЕГРАЦИЯ =====
+        function initTelegram() {
+            try {
+                if (window.Telegram && window.Telegram.WebApp) {
+                    const tg = window.Telegram.WebApp;
+                    tg.expand();
+                    tg.enableClosingConfirmation();
+                    
+                    // Применяем тему Telegram
+                    if (tg.colorScheme === 'dark') {
+                        document.documentElement.style.setProperty('--bg-primary', tg.backgroundColor || '#0f0f0f');
+                        document.documentElement.style.setProperty('--bg-secondary', tg.secondaryBackgroundColor || '#1a1a1a');
+                        document.documentElement.style.setProperty('--text-primary', tg.textColor || '#ffffff');
+                        document.documentElement.style.setProperty('--text-secondary', tg.hintColor || '#b0b0b0');
+                    }
+                    
+                    // Кнопка "Назад" в Telegram
+                    tg.BackButton.onClick(() => {
+                        tg.close();
+                    });
+                    
+                    console.log('✅ Telegram WebApp initialized');
+                }
+            } catch (e) {
+                console.log('⚠️ Telegram WebApp not available');
+            }
+        }
+
+        // ===== ДОБАВЛЕНИЕ ТРАНЗАКЦИИ =====
+        function addTransaction() {
+            const type = document.getElementById('type').value;
+            const category = document.getElementById('category').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const date = document.getElementById('date').value;
+            const description = document.getElementById('description').value.trim();
+
+            if (!amount || amount <= 0) {
+                alert('Введите корректную сумму');
+                return;
+            }
+            if (!date) {
+                alert('Выберите дату');
+                return;
+            }
+
+            const transactions = getTransactions();
+            const transaction = {
+                id: Date.now(),
+                type,
+                category,
+                amount: Math.round(amount * 100) / 100,
+                date,
+                description: description || '',
+                createdAt: new Date().toISOString(),
+                savingsAge: type === 'savings' ? 0 : null
+            };
+
+            transactions.push(transaction);
+            saveTransactions(transactions);
+            resetForm();
+            switchTab('history', document.querySelector('.tab[data-tab="history"]'));
+            showToast('Операция добавлена');
+            
+            // Уведомление в Telegram
+            try {
+                if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                }
+            } catch(e) {}
+        }
+
+        function deleteTransaction(id) {
+            if (!confirm('Удалить операцию?')) return;
+            const transactions = getTransactions().filter(t => t.id !== id);
+            saveTransactions(transactions);
+            showToast('Операция удалена');
+        }
+
+        function openEditModal(id) {
+            currentEditId = id;
+            const transactions = getTransactions();
+            const transaction = transactions.find(t => t.id === id);
+            if (!transaction) return;
+
+            document.getElementById('editAmount').value = transaction.amount;
+            document.getElementById('editDescription').value = transaction.description || '';
+
+            const categorySelect = document.getElementById('editCategory');
+            categorySelect.innerHTML = '';
+            const options = categoryOptions[transaction.type] || [];
+            options.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat + ' ' + getIcon(cat);
+                option.selected = cat === transaction.category;
+                categorySelect.appendChild(option);
+            });
+
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function saveEdit() {
+            if (currentEditId === null) return;
+
+            const transactions = getTransactions();
+            const transaction = transactions.find(t => t.id === currentEditId);
+
+            if (transaction) {
+                const newAmount = parseFloat(document.getElementById('editAmount').value);
+                if (!newAmount || newAmount <= 0) {
+                    alert('Введите корректную сумму');
+                    return;
+                }
+                transaction.amount = Math.round(newAmount * 100) / 100;
+                transaction.category = document.getElementById('editCategory').value;
+                transaction.description = document.getElementById('editDescription').value.trim() || '';
+                saveTransactions(transactions);
+                showToast('Операция обновлена');
+            }
+            closeModal();
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+            currentEditId = null;
+        }
+
+        function resetForm() {
+            document.getElementById('type').value = 'income';
+            document.getElementById('amount').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('date').valueAsDate = new Date();
+            updateCategories();
+        }
+
+        function updateCategories() {
+            const type = document.getElementById('type').value;
+            const categorySelect = document.getElementById('category');
+            const options = categoryOptions[type] || [];
+
+            categorySelect.innerHTML = '';
+            options.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat + ' ' + getIcon(cat);
+                categorySelect.appendChild(option);
+            });
+        }
+
+        // ===== НАПОМИНАНИЯ =====
+        function addReminder() {
+            const title = document.getElementById('reminderTitle').value.trim();
+            const amount = parseFloat(document.getElementById('reminderAmount').value);
+            const day = parseInt(document.getElementById('reminderDay').value);
+            const category = document.getElementById('reminderCategory').value;
+
+            if (!title) {
+                alert('Введите название');
+                return;
+            }
+            if (!amount || amount <= 0) {
+                alert('Введите корректную сумму');
+                return;
+            }
+            if (!day || day < 1 || day > 31) {
+                alert('Введите день месяца от 1 до 31');
+                return;
+            }
+
+            const reminders = getReminders();
+            reminders.push({
+                id: Date.now(),
+                title,
+                amount: Math.round(amount * 100) / 100,
+                day,
+                category,
+                createdAt: new Date().toISOString(),
+                active: true
+            });
+
+            saveReminders(reminders);
+            document.getElementById('reminderTitle').value = '';
+            document.getElementById('reminderAmount').value = '';
+            document.getElementById('reminderDay').value = '';
+            showToast('Напоминание добавлено');
+            checkReminders();
+        }
+
+        function deleteReminder(id) {
+            if (!confirm('Удалить напоминание?')) return;
+            const reminders = getReminders().filter(r => r.id !== id);
+            saveReminders(reminders);
+            showToast('Напоминание удалено');
+        }
+
+        function checkReminders() {
+            const reminders = getReminders();
+            const today = new Date();
+            const todayDay = today.getDate();
+            const transactions = getTransactions();
+            let added = 0;
+
+            reminders.forEach(r => {
+                if (!r.active) return;
+                if (r.day === todayDay) {
+                    const exists = transactions.some(t =>
+                        t.category === r.category &&
+                        t.type === 'expense' &&
+                        t.date === today.toISOString().split('T')[0] &&
+                        Math.round(t.amount) === Math.round(r.amount)
+                    );
+                    if (!exists) {
+                        transactions.push({
+                            id: Date.now() + Math.random(),
+                            type: 'expense',
+                            category: r.category,
+                            amount: r.amount,
+                            date: today.toISOString().split('T')[0],
+                            description: r.title + ' (авто)',
+                            createdAt: new Date().toISOString(),
+                            savingsAge: null
+                        });
+                        added++;
+                    }
+                }
+            });
+
+            if (added > 0) {
+                saveTransactions(transactions);
+                showToast('Добавлено ' + added + ' автоматических платежей');
+            }
+        }
+
+        function renderReminders() {
+            const reminders = getReminders();
+            const container = document.getElementById('remindersList');
+            document.getElementById('reminderCount').textContent = reminders.length;
+
+            if (reminders.length === 0) {
+                container.innerHTML =
+                    `<div class="empty-state"><div class="empty-state-icon">🔔</div><p>Нет напоминаний</p></div>`;
+                return;
+            }
+
+            let html = '';
+            reminders.forEach(r => {
+                html += `
+                            <div class="reminder-item">
+                                <div class="reminder-info">
+                                    <div class="reminder-title">${getIcon(r.category)} ${r.title}</div>
+                                    <div class="reminder-detail">Каждый ${r.day}-й день • ${r.category}</div>
+                                </div>
+                                <span class="reminder-amount">${Math.round(r.amount)}</span>
+                                <div class="transaction-actions">
+                                    <button class="btn-icon danger" onclick="deleteReminder(${r.id})">🗑️</button>
+                                </div>
+                            </div>
+                        `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ===== P&L =====
+        function updatePL() {
+            const transactions = getTransactions();
+            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+            const profit = income - expense;
+
+            document.getElementById('plIncome').textContent = Math.round(income);
+            document.getElementById('plExpense').textContent = Math.round(expense);
+
+            const profitEl = document.getElementById('plProfit');
+            const card = document.getElementById('plProfitCard');
+            profitEl.textContent = Math.round(profit);
+
+            card.className = 'pl-card';
+            if (profit > 0) card.classList.add('positive');
+            else if (profit < 0) card.classList.add('negative');
+            else card.classList.add('neutral');
+        }
+
+        // ===== НАВИГАЦИЯ =====
+        function switchTab(tabName, btn) {
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+            const target = document.getElementById(tabName);
+            if (target) target.style.display = 'block';
+
+            if (btn) {
+                btn.classList.add('active');
+            } else {
+                const tabBtn = document.querySelector(`.tab[data-tab="${tabName}"]`);
+                if (tabBtn) tabBtn.classList.add('active');
+            }
+
+            if (tabName === 'history') renderTransactions();
+            if (tabName === 'dashboard') { renderDashboard();
+                updatePL(); }
+            if (tabName === 'calendar') renderCalendar();
+            if (tabName === 'reminders') { renderReminders();
+                checkReminders(); }
+        }
+
+        // ===== ФИЛЬТРЫ =====
+        function setFilter(period, btn) {
+            currentFilter = period;
+            localStorage.setItem('financeFilter', period);
+            updateFilterButtons();
+            renderTransactions();
+        }
+
+        function updateFilterButtons() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.period === currentFilter);
+            });
+        }
+
+        function getFilteredTransactions() {
+            const all = getTransactions();
+            const now = new Date();
+
+            switch (currentFilter) {
+                case 'month': {
+                    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+                    return all.filter(t => new Date(t.date) >= start);
+                }
+                case '3months': {
+                    const start = new Date(now);
+                    start.setMonth(start.getMonth() - 3);
+                    return all.filter(t => new Date(t.date) >= start);
+                }
+                case 'year': {
+                    const start = new Date(now);
+                    start.setFullYear(start.getFullYear() - 1);
+                    return all.filter(t => new Date(t.date) >= start);
+                }
+                default:
+                    return all;
+            }
+        }
+
+        // ===== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА =====
+        function updateSummary() {
+            const transactions = getTransactions();
+            const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+            const savings = transactions.filter(t => t.type === 'savings').reduce((s, t) => s + t.amount, 0);
+            const balance = income - expense - savings;
+
+            document.getElementById('incomeTotal').textContent = Math.round(income);
+            document.getElementById('expenseTotal').textContent = Math.round(expense);
+            document.getElementById('savingsTotal').textContent = Math.round(savings);
+            document.getElementById('balanceTotal').textContent = Math.round(balance);
+            document.getElementById('headerBalance').textContent = Math.round(balance);
+
+            const savingsTxs = transactions.filter(t => t.type === 'savings');
+            if (savingsTxs.length > 0) {
+                const avgAge = savingsTxs.reduce((s, t) => s + (t.savingsAge || 0), 0) / savingsTxs.length;
+                document.getElementById('savingsAgeInfo').textContent = 'Ср. возраст: ' + Math.round(avgAge) + ' дн.';
+            } else {
+                document.getElementById('savingsAgeInfo').textContent = 'Нет накоплений';
+            }
+
+            const ratio = income > 0 ? Math.round((savings / income) * 100) : 0;
+            document.getElementById('balanceInfo').textContent = ratio > 0 ? 'Накопления: ' + ratio + '% от дохода' : '';
+        }
+
+        function loadData() {
+            updateSavingsAge();
+            updateSummary();
+            checkReminders();
+            initTelegram();
+        }
+
+        // ===== ГРАФИКИ =====
+        function renderDashboard() {
+            const transactions = getTransactions();
+            renderDailyChart(transactions);
+            renderCategoryChart(transactions);
+            renderSavingsChart(transactions);
+            renderMonthlyChart(transactions);
+            renderCumulativeChart(transactions);
+            renderTopExpensesChart(transactions);
+            renderComparisonChart(transactions);
+            renderGoalsProgress(transactions);
+            renderTrendChart(transactions);
+        }
+
+        function renderDailyChart(transactions) {
+            const days = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+            const data = Array(7).fill(0);
+            const today = new Date();
+
+            transactions
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    const tDate = new Date(t.date);
+                    const daysDiff = Math.floor((today - tDate) / (1000 * 60 * 60 * 24));
+                    if (daysDiff >= 0 && daysDiff < 7) {
+                        data[6 - daysDiff] += t.amount;
+                    }
+                });
+
+            const ctx = document.getElementById('dailyChart');
+            if (charts.daily) charts.daily.destroy();
+            charts.daily = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: days,
+                    datasets: [{
+                        label: 'Расходы',
+                        data: data,
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { ticks: { color: '#b0b0b0' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderCategoryChart(transactions) {
+            const categories = {};
+            transactions
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    categories[t.category] = (categories[t.category] || 0) + t.amount;
+                });
+
+            const labels = Object.keys(categories);
+            const data = Object.values(categories);
+            const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f472b6',
+                '#a78bfa', '#fb923c', '#6b7280'
+            ];
+
+            const ctx = document.getElementById('categoryChart');
+            if (charts.category) charts.category.destroy();
+
+            if (labels.length === 0) {
+                charts.category = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: ['Нет данных'], datasets: [{ data: [1], backgroundColor: ['#333'], borderColor: '#1a1a1a',
+                            borderWidth: 2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#b0b0b0' } } } }
+                });
+                return;
+            }
+
+            charts.category = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.map(l => getIcon(l) + ' ' + l),
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderColor: '#1a1a1a',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#b0b0b0', padding: 10, usePointStyle: true, pointStyle: 'circle',
+                                font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderSavingsChart(transactions) {
+            const categories = {};
+            transactions
+                .filter(t => t.type === 'savings')
+                .forEach(t => {
+                    categories[t.category] = (categories[t.category] || 0) + t.amount;
+                });
+
+            const labels = Object.keys(categories);
+            const data = Object.values(categories);
+            const colors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#6366f1', '#a78bfa'];
+
+            const ctx = document.getElementById('savingsChart');
+            if (charts.savings) charts.savings.destroy();
+
+            if (labels.length === 0) {
+                charts.savings = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: ['Нет данных'], datasets: [{ data: [1], backgroundColor: ['#333'], borderColor: '#1a1a1a',
+                            borderWidth: 2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#b0b0b0' } } } }
+                });
+                return;
+            }
+
+            charts.savings = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.map(l => getIcon(l) + ' ' + l),
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderColor: '#1a1a1a',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#b0b0b0', padding: 10, usePointStyle: true, pointStyle: 'circle',
+                                font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderMonthlyChart(transactions) {
+            const months = [];
+            const incomeData = [];
+            const expenseData = [];
+
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const monthKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                months.push(d.toLocaleDateString('ru', { month: 'short' }));
+
+                const income = transactions
+                    .filter(t => t.type === 'income' && t.date.startsWith(monthKey))
+                    .reduce((s, t) => s + t.amount, 0);
+                const expense = transactions
+                    .filter(t => t.type === 'expense' && t.date.startsWith(monthKey))
+                    .reduce((s, t) => s + t.amount, 0);
+
+                incomeData.push(income);
+                expenseData.push(expense);
+            }
+
+            const ctx = document.getElementById('monthlyChart');
+            if (charts.monthly) charts.monthly.destroy();
+            charts.monthly = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Доход',
+                        data: incomeData,
+                        borderColor: '#4ade80',
+                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#4ade80'
+                    }, {
+                        label: 'Расход',
+                        data: expenseData,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#ef4444'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#b0b0b0', usePointStyle: true, pointStyle: 'line', font: { size: 11 } }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { ticks: { color: '#b0b0b0' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderCumulativeChart(transactions) {
+            const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const labels = [];
+            const balanceData = [];
+            let balance = 0;
+
+            const daily = {};
+            sorted.forEach(t => {
+                if (!daily[t.date]) daily[t.date] = 0;
+                const sign = t.type === 'income' ? 1 : -1;
+                daily[t.date] += t.amount * sign;
+            });
+
+            const dates = Object.keys(daily).sort();
+            dates.forEach(date => {
+                labels.push(new Date(date).toLocaleDateString('ru', { day: '2-digit', month: 'short' }));
+                balance += daily[date];
+                balanceData.push(Math.round(balance));
+            });
+
+            const ctx = document.getElementById('cumulativeChart');
+            if (charts.cumulative) charts.cumulative.destroy();
+            charts.cumulative = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Баланс',
+                        data: balanceData,
+                        borderColor: '#fbbf24',
+                        backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 2,
+                        pointBackgroundColor: '#fbbf24'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#b0b0b0' } } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { ticks: { color: '#b0b0b0', maxTicksLimit: 15 }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderTopExpensesChart(transactions) {
+            const categories = {};
+            transactions
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    categories[t.category] = (categories[t.category] || 0) + t.amount;
+                });
+
+            const sorted = Object.entries(categories)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            const labels = sorted.map(([cat]) => getIcon(cat) + ' ' + cat);
+            const data = sorted.map(([, val]) => Math.round(val));
+            const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
+
+            const ctx = document.getElementById('topExpensesChart');
+            if (charts.topExpenses) charts.topExpenses.destroy();
+            charts.topExpenses = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { color: '#b0b0b0' }, grid: { display: false } },
+                        x: { beginAtZero: true, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        }
+
+        function renderComparisonChart(transactions) {
+            const months = {};
+            const now = new Date();
+
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now);
+                d.setMonth(d.getMonth() - i);
+                const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                months[key] = d.toLocaleDateString('ru', { month: 'short' });
+            }
+
+            const incomeData = [];
+            const expenseData = [];
+            const labels = [];
+
+            Object.entries(months).forEach(([key, label]) => {
+                labels.push(label);
+                const income = transactions
+                    .filter(t => t.type === 'income' && t.date.startsWith(key))
+                    .reduce((s, t) => s + t.amount, 0);
+                const expense = transactions
+                    .filter(t => t.type === 'expense' && t.date.startsWith(key))
+                    .reduce((s, t) => s + t.amount, 0);
+                incomeData.push(Math.round(income));
+                expenseData.push(Math.round(expense));
+            });
+
+            const ctx = document.getElementById('comparisonChart');
+            if (charts.comparison) charts.comparison.destroy();
+            charts.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Доход',
+                        data: incomeData,
+                        backgroundColor: 'rgba(74, 222, 128, 0.7)',
+                        borderColor: '#4ade80',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }, {
+                        label: 'Расход',
+                        data: expenseData,
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#b0b0b0', usePointStyle: true, pointStyle: 'circle', font: { size: 11 } }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { ticks: { color: '#b0b0b0' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderGoalsProgress(transactions) {
+            const container = document.getElementById('goalsProgress');
+
+            const savings = transactions
+                .filter(t => t.type === 'savings')
+                .reduce((acc, t) => {
+                    acc[t.category] = (acc[t.category] || 0) + t.amount;
+                    return acc;
+                }, {});
+
+            const goals = {
+                'Накопления': 100000,
+                'Инвестиции': 50000,
+                'Резерв': 30000,
+                'Крупная цель': 200000
+            };
+
+            let html = '';
+            let hasData = false;
+
+            Object.entries(goals).forEach(([goal, target]) => {
+                const current = savings[goal] || 0;
+                const percent = Math.min(Math.round((current / target) * 100), 100);
+                const color = percent >= 100 ? '#4ade80' : percent >= 50 ? '#fbbf24' : '#ef4444';
+
+                if (current > 0 || percent > 0) {
+                    hasData = true;
+                    html += `
+                                <div class="progress-goal">
+                                    <div class="goal-header">
+                                        <span class="goal-name">${getIcon(goal)} ${goal}</span>
+                                        <span class="goal-percent">${Math.round(current)} / ${target} (${percent}%)</span>
+                                    </div>
+                                    <div class="goal-track">
+                                        <div class="goal-fill" style="width: ${percent}%; background: ${color};"></div>
+                                    </div>
+                                </div>
+                            `;
+                }
+            });
+
+            if (!hasData) {
+                html = `
+                            <div class="empty-state" style="padding: 20px;">
+                                <div class="empty-state-icon">🎯</div>
+                                <p>Добавьте накопления, чтобы видеть прогресс целей</p>
+                            </div>
+                        `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderTrendChart(transactions) {
+            const sorted = [...transactions]
+                .filter(t => t.type === 'expense')
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            if (sorted.length < 3) {
+                const ctx = document.getElementById('trendChart');
+                if (charts.trend) charts.trend.destroy();
+                charts.trend = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: ['Недостаточно данных'], datasets: [{ data: [0], borderColor: '#333',
+                            backgroundColor: 'rgba(51,51,51,0.1)' }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+                return;
+            }
+
+            const daily = {};
+            sorted.forEach(t => {
+                if (!daily[t.date]) daily[t.date] = 0;
+                daily[t.date] += t.amount;
+            });
+
+            const dates = Object.keys(daily).sort();
+            const values = dates.map(d => daily[d]);
+            const labels = dates.map(d => new Date(d).toLocaleDateString('ru', { day: '2-digit', month: 'short' }));
+
+            const windowSize = Math.min(7, Math.floor(values.length / 2) || 3);
+            const movingAvg = [];
+            for (let i = 0; i < values.length; i++) {
+                let sum = 0;
+                let count = 0;
+                for (let j = Math.max(0, i - windowSize + 1); j <= i; j++) {
+                    sum += values[j];
+                    count++;
+                }
+                movingAvg.push(sum / count);
+            }
+
+            const ctx = document.getElementById('trendChart');
+            if (charts.trend) charts.trend.destroy();
+            charts.trend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Дневные расходы',
+                        data: values.map(v => Math.round(v)),
+                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                        pointRadius: 2,
+                        pointBackgroundColor: '#ef4444',
+                        fill: false,
+                        tension: 0.3
+                    }, {
+                        label: 'Скользящая средняя',
+                        data: movingAvg.map(v => Math.round(v)),
+                        borderColor: '#8b5cf6',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#b0b0b0', usePointStyle: true, pointStyle: 'line', font: { size: 11 } }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { ticks: { color: '#b0b0b0', maxTicksLimit: 15 }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // ===== КАЛЕНДАРЬ =====
+        function renderCalendar() {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+
+            document.getElementById('calendarMonth').textContent = currentMonth.toLocaleDateString('ru', {
+                month: 'long',
+                year: 'numeric'
+            });
+
+            const firstDay = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+
+            const transactions = getTransactions();
+            const transactionsByDate = {};
+            transactions.forEach(t => {
+                if (!transactionsByDate[t.date]) transactionsByDate[t.date] = [];
+                transactionsByDate[t.date].push(t);
+            });
+
+            let daysHTML = '';
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                daysHTML += '<div class="day" style="background: transparent; border: none; cursor: default;"></div>';
+            }
+
+            const today = new Date();
+            for (let i = 1; i <= daysInMonth; i++) {
+                const date = new Date(year, month, i);
+                const dateStr = date.toISOString().split('T')[0];
+                const isToday = date.toDateString() === today.toDateString();
+                const txs = transactionsByDate[dateStr] || [];
+                const hasExpense = txs.some(t => t.type === 'expense');
+                const hasIncome = txs.some(t => t.type === 'income');
+
+                let classes = 'day';
+                if (isToday) classes += ' today';
+                if (hasExpense) classes += ' has-expense';
+                if (hasIncome) classes += ' has-income';
+
+                daysHTML += `<div class="${classes}" onclick="showDayDetails('${dateStr}')">${i}</div>`;
+            }
+
+            document.getElementById('calendarDays').innerHTML = daysHTML;
+            document.getElementById('calendarDetails').innerHTML = '';
+        }
+
+        function showDayDetails(dateStr) {
+            const transactions = getTransactions().filter(t => t.date === dateStr);
+            const detailsDiv = document.getElementById('calendarDetails');
+
+            if (transactions.length === 0) {
+                detailsDiv.innerHTML =
+                    `<div class="empty-state" style="padding: 16px;"><div class="empty-state-icon">📭</div><p>Нет операций</p></div>`;
+                return;
+            }
+
+            let totalIncome = 0,
+                totalExpense = 0;
+            transactions.forEach(t => {
+                if (t.type === 'income') totalIncome += t.amount;
+                if (t.type === 'expense') totalExpense += t.amount;
+            });
+
+            let html = `
+                        <div class="form-section" style="margin-top: 12px;">
+                            <h3>${new Date(dateStr).toLocaleDateString('ru', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+                            <div style="display: flex; gap: 14px; margin-bottom: 10px; font-size: 12px;">
+                                <span style="color: var(--accent-income);">Доход: ${Math.round(totalIncome)}</span>
+                                <span style="color: var(--accent-expense);">Расход: ${Math.round(totalExpense)}</span>
+                            </div>
+                        `;
+
+            transactions.forEach(t => {
+                const sign = t.type === 'income' ? '+' : t.type === 'savings' ? '◆' : '-';
+                const color = t.type === 'income' ? 'income' : t.type === 'savings' ? 'savings' : 'expense';
+                const ageText = t.type === 'savings' && t.savingsAge !== null ? ' (' + t.savingsAge + ' дн.)' : '';
+                html += `
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="transaction-category">${getIcon(t.category)} ${t.category}</div>
+                                    <div class="transaction-date">${t.description || '—'}${ageText}</div>
+                                </div>
+                                <span class="transaction-amount ${color}">${sign}${Math.round(t.amount)}</span>
+                            </div>
+                        `;
+            });
+
+            html += '</div>';
+            detailsDiv.innerHTML = html;
+        }
+
+        function prevMonth() { currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderCalendar(); }
+
+        function nextMonth() { currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderCalendar(); }
+
+        function todayMonth() { currentMonth = new Date();
+            renderCalendar(); }
+
+        // ===== ИСТОРИЯ =====
+        function renderTransactions() {
+            const filtered = getFilteredTransactions();
+            const sorted = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const container = document.getElementById('transactionsList');
+            document.getElementById('transactionCount').textContent = sorted.length + ' операций';
+
+            if (sorted.length === 0) {
+                container.innerHTML =
+                    `<div class="empty-state"><div class="empty-state-icon">📭</div><p>Нет операций за выбранный период</p></div>`;
+                return;
+            }
+
+            let html = '';
+            sorted.forEach(t => {
+                const sign = t.type === 'income' ? '+' : t.type === 'savings' ? '◆' : '-';
+                const amountClass = t.type === 'income' ? 'income' : t.type === 'savings' ? 'savings' : 'expense';
+                const date = new Date(t.date).toLocaleDateString('ru');
+                const ageText = t.type === 'savings' && t.savingsAge !== null ? ' • ' + t.savingsAge + ' дн.' : '';
+
+                html += `
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="transaction-category">${getIcon(t.category)} ${t.category}</div>
+                                    <div class="transaction-date">${date}${t.description ? ' • ' + t.description : ''}${ageText}</div>
+                                </div>
+                                <span class="transaction-amount ${amountClass}">${sign}${Math.round(t.amount)}</span>
+                                <div class="transaction-actions">
+                                    <button class="btn-icon" onclick="openEditModal(${t.id})">✏️</button>
+                                    <button class="btn-icon danger" onclick="deleteTransaction(${t.id})">🗑️</button>
+                                </div>
+                            </div>
+                        `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ===== ВСПОМОГАТЕЛЬНЫЕ =====
+        function showClearData() {
+            if (confirm('Очистить все данные? Это действие необратимо.')) {
+                localStorage.removeItem('transactions');
+                localStorage.removeItem('reminders');
+                localStorage.removeItem('financeFilter');
+                location.reload();
+            }
+        }
+
+        function exportData() {
+            const data = { transactions: getTransactions(), reminders: getReminders() };
+            if (data.transactions.length === 0 && data.reminders.length === 0) {
+                alert('Нет данных для экспорта');
+                return;
+            }
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'finance_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Данные экспортированы');
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            Object.assign(toast.style, {
+                position: 'fixed',
+                bottom: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#1a1a1a',
+                color: '#fff',
+                padding: '10px 22px',
+                borderRadius: '8px',
+                border: '1px solid #333',
+                zIndex: '9999',
+                fontSize: '13px',
+                fontWeight: '500',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                opacity: '0',
+                transition: 'opacity 0.3s ease, transform 0.3s ease',
+                transform: 'translateX(-50%) translateY(20px)'
+            });
+            document.body.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(-50%) translateY(0)';
+            });
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // ===== ЗАПУСК =====
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+        document.getElementById('editModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
+
+        setInterval(checkReminders, 300000);
+        updateCategories();
+        loadData();
+        renderDashboard();
+        renderTransactions();
+        renderCalendar();
+        renderReminders();
+        updateFilterButtons();
+        updatePL();
+
+        console.log('✅ Finance Mini App loaded successfully!');
+        console.log('📊 Transactions:', getTransactions().length);
+        console.log('🔔 Reminders:', getReminders().length);
+    </script>
+</body>
+</html>
